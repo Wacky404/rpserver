@@ -7,6 +7,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"time"
+
+	"github.com/Wacky404/rpserver/internal/auth"
 )
 
 func ExecuteServer() {
@@ -17,6 +19,11 @@ func ExecuteServer() {
 }
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
+	if !auth.Verifyrequest(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	backendURL, err := getBackendURL(r)
 	if err != nil {
 		http.Error(w, "Backend URL not provided", http.StatusBadRequest)
