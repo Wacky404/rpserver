@@ -8,14 +8,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func init() {
-	godotenv.Load()
-}
-
 func main() {
+	godotenv.Load()
 	if os.Getenv("JWT_SECRET") == "" {
 		log.Println("a critical env var is not set!")
 		os.Exit(1)
 	}
-	cmd.ExecuteServer()
+	log.Fatal(cmd.ExecuteServer("9090"))
 }

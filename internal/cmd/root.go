@@ -11,11 +11,14 @@ import (
 	"github.com/Wacky404/rpserver/internal/auth"
 )
 
-func ExecuteServer() {
+func ExecuteServer(portNum string) error {
+    // don't know if want to keep handlers in here
 	http.HandleFunc("/proxy", handleProxy)
 
-	log.Println("Reverse Proxy running on :9090")
-	log.Fatal(http.ListenAndServe(":9090", nil))
+	log.Printf("Reverse Proxy running on :%v", portNum)
+	err := http.ListenAndServe(":"+portNum, nil)
+
+	return err
 }
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
