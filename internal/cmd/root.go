@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -10,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Wacky404/rpserver/internal/auth"
 	"github.com/Wacky404/rpserver/internal/middleware"
+	"github.com/Wacky404/rpserver/internal/users"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -25,7 +26,7 @@ func ExecuteServer(port string, cert string, key string) error {
 
 	mux.Handle("/", middleware.Recover(http.HandlerFunc(serveLoginPage)))
 	mux.Handle("/auth/login", middleware.Recover(http.HandlerFunc(handleLogin)))
-	mux.Handle("/auth/signup", middleware.Recover(http.HandlerFunc(serveSignUpPage)))
+	mux.Handle("/dashboard", middleware.Recover(middleware.Cookies(http.HandlerFunc(serveDashboard))))
 	mux.Handle("/proxy", middleware.Recover(middleware.JWT(http.HandlerFunc(handleProxy))))
 	mux.Handle("/status", middleware.Recover(http.HandlerFunc(handleStatus)))
 
@@ -33,19 +34,20 @@ func ExecuteServer(port string, cert string, key string) error {
 	return err
 }
 
-func serveSignUpPage(w http.ResponseWriter, r *http.Request) {}
-
-func handleSignUp(w http.ResponseWriter, r *http.Request) {}
+func serveDashboard(w http.ResponseWriter, r *http.Request) {
+	tmpl := template.Must(template.ParseFiles("templates/dash/dashboard.html"))
+	tmpl.Execute(w, nil)
+}
 
 func serveLoginPage(w http.ResponseWriter, r *http.Request) {
-	log.Println("Trying to server the login page!!!")
-	http.ServeFile(w, r, "internal/auth/login/index.html")
+	tmpl := template.Must(template.ParseFiles("templates/index.html"))
+	tmpl.Execute(w, nil)
 }
 
 /* This function doesn't have proper auth for login creds */
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -54,20 +56,31 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	// pull this out into auth function
 	if username == "admin" && password == "password4321" {
-		token, err := auth.GenerateJWT(username, time.Hour)
-		if err != nil {
-			log.Printf("JWT generation error: %v", err)
-			http.Error(w, "Could not generate token:", http.StatusInternalServerError)
-			return
+		//token, err := auth.GenerateJWT(username, time.Hour)
+		//if err != nil {
+		//	log.Printf("JWT generation error: %v", err)
+		//	http.Error(w, "Could not generate token:", http.StatusInternalServerError)
+		//	return
+		//}
+
+		//w.Header().Set("Content-Type", "application/json")
+		//fmt.Fprintf(w, `{"token": "%s"}`, token)
+
+		//return
+		newSID := users.SessionPrefix + users.GenID(16) // hash and store in sessions table
+		cookie := &http.Cookie{
+			Name:     middleware.AdmitCookies[0],
+			Value:    newSID,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+			Expires:  time.Now().Add(time.Minute * 2),
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"token": "%s"}`, token)
-
-		return
+		http.SetCookie(w, cookie)
+		w.Header().Set("HX-Redirect", "/dashboard")
+		w.WriteHeader(http.StatusOK)
 	}
-
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,39 @@
+services:
+  rpserver:
+    build: .
+    image: rpserver:latest
+    depends_on:
+      db:
+        image: postgres:16
+        container_name: rpserver_postgres
+        restart: always
+        environment:
+          POSTGRES_DB: rpserver
+          POSTGRES_USER: rpuser
+          POSTGRES_PASSWORD: rppassword404
+        condition: service_healthy
+        volumes:
+          - postgres_data:/var/lib/postgresql/data  # Persists Postgres data across container restarts
+        healthcheck:
+        test: ["CMD-SHELL", "pg_isready -d rpserver -U rpuser"]
+        interval: 1s
+        timeout: 5s
+        retries: 10
+    environment:
+      DATABASE_URL: postgres://rpuser:rppassword404@db:5432/rpserver
+      STORE_MODEL_IN_DB: "True" # allows adding models via UI
+    env_file:
+      - .env
+    ports:
+      - "8443:8443"
+    volumes:
+      postgres_data:
+        name: rpserver_postgres_data  # Named volume for Postgres data persistence
+      - ./certs:/rpserver/certs
+    command: >
+      sh -c '
+        echo "Waiting for DB...";
+        until pg_isready -h db -U rpuser; do sleep 1; done;
+        echo "Starting server...";
+        ./rpserver --cert certs/localhost.pem --key certs/localhost-key.pem
+      '

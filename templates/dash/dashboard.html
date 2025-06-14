@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reverse Proxy | Dashboard</title>
+    <script src="/libs/htmx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #667eea;
+        --primary-dark: #5a67d8;
+        --secondary: #764ba2;
+        --success: #48bb78;
+        --warning: #ed8936;
+        --danger: #f56565;
+        --info: #4299e1;
+        --light: #f7fafc;
+        --dark: #2d3748;
+        --border: #e2e8f0;
+        --text: #2d3748;
+        --text-muted: #718096;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      /* Header */
+      .header {
+        background: white;
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .header h1 {
+        color: var(--primary);
+        font-size: 2rem;
+        font-weight: 700;
+      }
+
+      .header-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .refresh-btn {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .refresh-btn:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        background: var(--success);
+        color: white;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: white;
+        animation: pulse 2s infinite;
+      }
+
+      /* Grid Layout */
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .dashboard-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .dashboard-row.two-col {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .dashboard-row.three-col {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      /* Cards */
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        border: 1px solid var(--border);
+      }
+
+      .card:hover {
+        box-shadow: var(--card-shadow-hover);
+        transform: translateY(-2px);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .card-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .card-subtitle {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+      }
+
+      /* Metrics Cards */
+      .metric-card {
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .metric-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--primary);
+        border-radius: 12px 12px 0 0;
+      }
+
+      .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin: 1rem 0 0.5rem;
+      }
+
+      .metric-label {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .metric-change {
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        font-weight: 500;
+      }
+
+      .metric-change.positive {
+        color: var(--success);
+      }
+
+      .metric-change.negative {
+        color: var(--danger);
+      }
+
+      /* Resource Usage */
+      .resource-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .resource-item:last-child {
+        border-bottom: none;
+      }
+
+      .resource-label {
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      .resource-value {
+        font-weight: 600;
+        color: var(--primary);
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--light);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: var(--primary);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+      }
+
+      /* Sessions List */
+      .sessions-list {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .session-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        background: var(--light);
+        transition: background 0.2s;
+      }
+
+      .session-item:hover {
+        background: var(--border);
+      }
+
+      .session-info {
+        flex: 1;
+      }
+
+      .session-user {
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      .session-meta {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+      }
+
+      .session-status {
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+      }
+
+      .session-status.active {
+        background: var(--success);
+        color: white;
+      }
+
+      .session-status.expired {
+        background: var(--danger);
+        color: white;
+      }
+
+      /* Request History */
+      .request-item {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        background: var(--light);
+        align-items: center;
+        font-size: 0.875rem;
+      }
+
+      .request-method {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        min-width: 60px;
+        text-align: center;
+      }
+
+      .request-method.GET {
+        background: var(--success);
+        color: white;
+      }
+
+      .request-method.POST {
+        background: var(--info);
+        color: white;
+      }
+
+      .request-method.PUT {
+        background: var(--warning);
+        color: white;
+      }
+
+      .request-method.DELETE {
+        background: var(--danger);
+        color: white;
+      }
+
+      .request-path {
+        color: var(--text);
+        font-family: monospace;
+      }
+
+      .request-status {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.75rem;
+      }
+
+      .request-status.success {
+        background: var(--success);
+        color: white;
+      }
+
+      .request-status.error {
+        background: var(--danger);
+        color: white;
+      }
+
+      .request-time {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+      }
+
+      /* Charts */
+      .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+      }
+
+      .chart-small {
+        height: 200px;
+      }
+
+      /* Loading States */
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100px;
+        color: var(--text-muted);
+      }
+
+      .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border);
+        border-top: 3px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 1rem;
+      }
+
+      /* Animations */
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .fade-in {
+        animation: fadeIn 0.5s ease-out;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .container {
+          padding: 1rem;
+        }
+
+        .header {
+          flex-direction: column;
+          text-align: center;
+        }
+
+        .dashboard-row.two-col,
+        .dashboard-row.three-col {
+          grid-template-columns: 1fr;
+        }
+
+        .request-item {
+          grid-template-columns: 1fr;
+          gap: 0.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div>
+          <h1>Reverse Proxy Dashboard</h1>
+          <div class="card-subtitle">Real-time monitoring and analytics</div>
+        </div>
+        <div class="header-controls">
+          <div class="status-indicator">
+            <div class="status-dot"></div>
+            <span>System Online</span>
+          </div>
+          <button
+            class="refresh-btn"
+            hx-get="/api/dashboard/refresh"
+            hx-target="body"
+            hx-swap="outerHTML"
+          >
+            Refresh Data
+          </button>
+        </div>
+      </div>
+
+      <!-- Metrics Overview -->
+      <div class="dashboard-grid">
+        <div
+          class="card metric-card"
+          hx-get="/api/metrics/requests"
+          hx-trigger="load, every 5s"
+          hx-swap="innerHTML"
+        >
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading...
+          </div>
+        </div>
+
+        <div
+          class="card metric-card"
+          hx-get="/api/metrics/sessions"
+          hx-trigger="load, every 10s"
+          hx-swap="innerHTML"
+        >
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading...
+          </div>
+        </div>
+
+        <div
+          class="card metric-card"
+          hx-get="/api/metrics/forwarded"
+          hx-trigger="load, every 5s"
+          hx-swap="innerHTML"
+        >
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading...
+          </div>
+        </div>
+
+        <div
+          class="card metric-card"
+          hx-get="/api/metrics/users"
+          hx-trigger="load, every 30s"
+          hx-swap="innerHTML"
+        >
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading...
+          </div>
+        </div>
+      </div>
+
+      <!-- Resource Usage & Browser Sessions -->
+      <div class="dashboard-row two-col">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">System Resources</div>
+              <div class="card-subtitle">CPU, Memory, Network usage</div>
+            </div>
+          </div>
+          <div
+            hx-get="/api/resources"
+            hx-trigger="load, every 3s"
+            hx-swap="innerHTML"
+          >
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading resources...
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Active Sessions</div>
+              <div class="card-subtitle">Currently logged in users</div>
+            </div>
+          </div>
+          <div
+            class="sessions-list"
+            hx-get="/api/sessions"
+            hx-trigger="load, every 10s"
+            hx-swap="innerHTML"
+          >
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading sessions...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="dashboard-row two-col">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Request Volume</div>
+              <div class="card-subtitle">Requests per minute over time</div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="requestVolumeChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Response Status</div>
+              <div class="card-subtitle">HTTP status code distribution</div>
+            </div>
+          </div>
+          <div class="chart-container chart-small">
+            <canvas id="statusChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Request History -->
+      <div class="dashboard-row">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Recent Requests</div>
+              <div class="card-subtitle">
+                Latest proxy requests and responses
+              </div>
+            </div>
+          </div>
+          <div
+            hx-get="/api/requests/recent"
+            hx-trigger="load, every 5s"
+            hx-swap="innerHTML"
+          >
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading requests...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Activity (Extensible Section) -->
+      <div class="dashboard-row">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">User Activity</div>
+              <div class="card-subtitle">Top users by request volume</div>
+            </div>
+          </div>
+          <div class="chart-container chart-small">
+            <canvas id="userActivityChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Chart configurations and initialization
+      let charts = {};
+
+      // Initialize charts when the page loads
+      document.addEventListener("DOMContentLoaded", function () {
+        initializeCharts();
+
+        // Refresh charts periodically
+        setInterval(updateCharts, 30000); // 30 seconds
+      });
+
+      function initializeCharts() {
+        // Request Volume Chart
+        const requestCtx = document.getElementById("requestVolumeChart");
+        if (requestCtx) {
+          charts.requestVolume = new Chart(requestCtx, {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Requests/min",
+                  data: [],
+                  borderColor: "#667eea",
+                  backgroundColor: "rgba(102, 126, 234, 0.1)",
+                  tension: 0.4,
+                  fill: true,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: {
+                    color: "#e2e8f0",
+                  },
+                },
+                x: {
+                  grid: {
+                    color: "#e2e8f0",
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        // Status Distribution Chart
+        const statusCtx = document.getElementById("statusChart");
+        if (statusCtx) {
+          charts.status = new Chart(statusCtx, {
+            type: "doughnut",
+            data: {
+              labels: [
+                "2xx Success",
+                "3xx Redirect",
+                "4xx Client Error",
+                "5xx Server Error",
+              ],
+              datasets: [
+                {
+                  data: [0, 0, 0, 0],
+                  backgroundColor: ["#48bb78", "#4299e1", "#ed8936", "#f56565"],
+                  borderWidth: 0,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: "bottom",
+                },
+              },
+            },
+          });
+        }
+
+        // User Activity Chart
+        const userCtx = document.getElementById("userActivityChart");
+        if (userCtx) {
+          charts.userActivity = new Chart(userCtx, {
+            type: "bar",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Requests",
+                  data: [],
+                  backgroundColor: "#667eea",
+                  borderRadius: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: {
+                    color: "#e2e8f0",
+                  },
+                },
+                x: {
+                  grid: {
+                    display: false,
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        // Load initial chart data
+        updateCharts();
+      }
+
+      function updateCharts() {
+        // Fetch and update chart data
+        fetch("/api/charts/request-volume")
+          .then((response) => response.json())
+          .then((data) => {
+            if (charts.requestVolume) {
+              charts.requestVolume.data.labels = data.labels;
+              charts.requestVolume.data.datasets[0].data = data.values;
+              charts.requestVolume.update();
+            }
+          })
+          .catch(console.error);
+
+        fetch("/api/charts/status-distribution")
+          .then((response) => response.json())
+          .then((data) => {
+            if (charts.status) {
+              charts.status.data.datasets[0].data = data.values;
+              charts.status.update();
+            }
+          })
+          .catch(console.error);
+
+        fetch("/api/charts/user-activity")
+          .then((response) => response.json())
+          .then((data) => {
+            if (charts.userActivity) {
+              charts.userActivity.data.labels = data.labels;
+              charts.userActivity.data.datasets[0].data = data.values;
+              charts.userActivity.update();
+            }
+          })
+          .catch(console.error);
+      }
+
+      // Utility functions for extensibility
+      function addCustomMetric(title, value, change, changeType) {
+        const grid = document.querySelector(".dashboard-grid");
+        const metricCard = document.createElement("div");
+        metricCard.className = "card metric-card fade-in";
+        metricCard.innerHTML = `
+          <div class="metric-value">${value}</div>
+          <div class="metric-label">${title}</div>
+          ${change ? `<div class="metric-change ${changeType}">${change}</div>` : ""}
+        `;
+        grid.appendChild(metricCard);
+      }
+
+      function addCustomChart(containerId, title, subtitle) {
+        const row = document.createElement("div");
+        row.className = "dashboard-row";
+        row.innerHTML = `
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">${title}</div>
+                <div class="card-subtitle">${subtitle}</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="${containerId}"></canvas>
+            </div>
+          </div>
+        `;
+        document.querySelector(".container").appendChild(row);
+      }
+
+      // Handle HTMX events for smooth transitions
+      document.body.addEventListener("htmx:afterSwap", function (evt) {
+        // Add fade-in animation to new content
+        if (evt.detail.target) {
+          evt.detail.target.classList.add("fade-in");
+        }
+      });
+
+      // Error handling for failed requests
+      document.body.addEventListener("htmx:responseError", function (evt) {
+        console.error("Dashboard update failed:", evt.detail);
+        // Could show toast notification here
+      });
+    </script>
+  </body>
+</html>

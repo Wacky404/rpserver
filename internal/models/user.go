@@ -1,0 +1,32 @@
+package models
+
+import "time"
+
+// this is more than likely going to change
+type Password [16]byte
+type SessionID [16]byte
+
+type Token struct {
+	ID        ID        `json:"id"`
+	String    string    `json:"string"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type User struct {
+	ID          ID        `json:"id"`
+	Name        string    `json:"name"`
+	Password    Password  `json:"password"`
+	Admin       bool      `json:"admin"`
+	Token       Token     `json:"token"`
+	CreatedAt   time.Time `json:"created_at"`
+	LastUpdated time.Time `json:"last_updated"`
+}
+
+type UserSession struct {
+	SessionID   SessionID `json:"session_id"`
+	IP          string    `json:"ip"`
+	UA          string    `json:"ua"`
+	UserID      ID        `json:"user_id"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	LastUpdated time.Time `json:"last_login"`
+}

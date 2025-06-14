@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reverse Proxy | Login</title>
+    <script
+      src="https://unpkg.com/htmx.org@2.0.4"
+      integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
+      crossorigin="anonymous"
+    ></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .login-card {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+        max-width: 400px;
+        width: 100%;
+        box-sizing: border-box;
+        animation: fadeIn 0.5s ease-in-out;
+        transition: all 0.3s ease;
+      }
+
+      .login-card.shake {
+        animation: shake 0.5s ease-in-out;
+      }
+
+      .login-card h2 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        font-size: 1.75rem;
+        color: #333;
+        text-align: center;
+      }
+
+      .form-group {
+        margin-bottom: 1rem;
+        position: relative;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #555;
+        transition: color 0.2s ease;
+      }
+
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+      }
+
+      input[type="text"]:focus,
+      input[type="password"]:focus {
+        border-color: #667eea;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      input.error {
+        border-color: #e53e3e;
+        background-color: #fef5f5;
+        box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
+      }
+
+      input.error:focus {
+        border-color: #e53e3e;
+        box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.2);
+      }
+
+      .error-message {
+        color: #e53e3e;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        background-color: #fef5f5;
+        border: 1px solid #feb2b2;
+        border-radius: 4px;
+        display: none;
+        animation: slideDown 0.3s ease;
+      }
+
+      .error-message.show {
+        display: block;
+      }
+
+      button {
+        width: 100%;
+        padding: 0.75rem;
+        background-color: #667eea;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      button:hover {
+        background-color: #5a67d8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      button:disabled {
+        background-color: #a0aec0;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .loading {
+        opacity: 0.7;
+      }
+
+      .loading::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid transparent;
+        border-top: 2px solid #ffffff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      .footer {
+        margin-top: 1rem;
+        text-align: center;
+        font-size: 0.9rem;
+        color: #888;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        10%,
+        30%,
+        50%,
+        70%,
+        90% {
+          transform: translateX(-5px);
+        }
+        20%,
+        40%,
+        60%,
+        80% {
+          transform: translateX(5px);
+        }
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Success state (optional, for when login succeeds) */
+      .success-message {
+        color: #38a169;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        background-color: #f0fff4;
+        border: 1px solid #9ae6b4;
+        border-radius: 4px;
+        display: none;
+        animation: slideDown 0.3s ease;
+      }
+
+      .success-message.show {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-card" id="loginCard">
+      <h2>Login</h2>
+      <form
+        hx-post="/auth/login"
+        hx-target="#loginCard"
+        hx-swap="outerHTML"
+        hx-indicator="#loginBtn"
+        id="loginForm"
+      >
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <button type="submit" id="loginBtn">
+          <span class="btn-text">Sign In</span>
+        </button>
+      </form>
+      <div class="footer">❤️ Wacky404's Reverse Proxy Server</div>
+    </div>
+
+    <script>
+      // Handle form submission and loading states
+      document
+        .getElementById("loginForm")
+        .addEventListener("htmx:beforeRequest", function (e) {
+          const btn = document.getElementById("loginBtn");
+          const errorMsg = document.getElementById("errorMessage");
+
+          // Reset error states
+          errorMsg.classList.remove("show");
+          document.querySelectorAll("input.error").forEach((input) => {
+            input.classList.remove("error");
+          });
+
+          // Show loading state
+          btn.classList.add("loading");
+          btn.disabled = true;
+          btn.querySelector(".btn-text").style.visibility = "hidden";
+        });
+
+      // Handle successful responses
+      document
+        .getElementById("loginForm")
+        .addEventListener("htmx:afterRequest", function (e) {
+          const btn = document.getElementById("loginBtn");
+
+          // Reset loading state
+          btn.classList.remove("loading");
+          btn.disabled = false;
+          btn.querySelector(".btn-text").style.visibility = "visible";
+
+          // If the response was unsuccessful (4xx, 5xx), show error
+          if (e.detail.xhr.status >= 400) {
+            showLoginError(
+              e.detail.xhr.responseText ||
+                "Login failed. Please check your credentials.",
+            );
+          }
+        });
+
+      // Function to show login errors
+      function showLoginError(message) {
+        const card = document.getElementById("loginCard");
+        const errorMsg = document.getElementById("errorMessage");
+        const inputs = document.querySelectorAll("#username, #password");
+
+        // Add error styling to inputs
+        inputs.forEach((input) => {
+          input.classList.add("error");
+        });
+
+        // Show error message
+        errorMsg.textContent = message;
+        errorMsg.classList.add("show");
+
+        // Shake animation
+        card.classList.add("shake");
+        setTimeout(() => {
+          card.classList.remove("shake");
+        }, 500);
+
+        // Focus back to username field
+        document.getElementById("username").focus();
+      }
+
+      // Clear error states when user starts typing
+      document.querySelectorAll("#username, #password").forEach((input) => {
+        input.addEventListener("input", function () {
+          this.classList.remove("error");
+          const errorMsg = document.getElementById("errorMessage");
+          if (errorMsg.classList.contains("show")) {
+            errorMsg.classList.remove("show");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
