@@ -32,8 +32,8 @@
         max-width: 400px;
         width: 100%;
         box-sizing: border-box;
-        animation: fadeIn 0.5s ease-in-out;
-        transition: all 0.3s ease;
+        /*animation: fadeIn 0.5s ease-in-out;
+        transition: all 0.3s ease;*/
       }
 
       .login-card.shake {
@@ -237,8 +237,8 @@
       <h2>Login</h2>
       <form
         hx-post="/auth/login"
-        hx-target="#loginCard"
-        hx-swap="outerHTML"
+        hx-target="#errorMessage"
+        hx-swap="innerHTML"
         hx-indicator="#loginBtn"
         id="loginForm"
       >

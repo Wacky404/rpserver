@@ -17,7 +17,7 @@ func init() {
 
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
-const algo = "HS256"
+var algo = string(os.Getenv("JWT_ALGO"))
 
 func GenerateJWT(userID string, duration time.Duration) (string, error) {
 	claims := jwt.MapClaims{

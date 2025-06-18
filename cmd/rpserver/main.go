@@ -11,8 +11,8 @@ import (
 )
 
 func main() {
-	certFile := flag.String("cert", "certs/localhost.pem", "TLS certificate file")
-	keyFile := flag.String("key", "certs/localhost-key.pem", "TLS key file")
+	certFile := flag.String("cert", "/rpserver/certs/localhost.pem", "TLS certificate file")
+	keyFile := flag.String("key", "/rpserver/certs/localhost-key.pem", "TLS key file")
 
 	flag.Parse()
 	godotenv.Load()
@@ -21,6 +21,7 @@ func main() {
 		log.Println("a critical env var is not set!")
 		os.Exit(1)
 	}
+
 	go func() {
 		log.Println("HTTPS server is running on https://localhost:8443")
 		err := cmd.ExecuteServer(":8443", *certFile, *keyFile)

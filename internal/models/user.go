@@ -3,8 +3,10 @@ package models
 import "time"
 
 // this is more than likely going to change
-type Password [16]byte
-type SessionID [16]byte
+type (
+	Password  [16]byte
+	SessionID [16]byte
+)
 
 type Token struct {
 	ID        ID        `json:"id"`
@@ -24,9 +26,10 @@ type User struct {
 
 type UserSession struct {
 	SessionID   SessionID `json:"session_id"`
+	UserID      ID        `json:"user_id"`
 	IP          string    `json:"ip"`
 	UA          string    `json:"ua"`
-	UserID      ID        `json:"user_id"`
 	ExpiresAt   time.Time `json:"expires_at"`
+	CreatedAt   time.Time `json:"created_at"`
 	LastUpdated time.Time `json:"last_login"`
 }

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Wacky404/rpserver/internal/auth/users"
 	"github.com/Wacky404/rpserver/internal/middleware"
-	"github.com/Wacky404/rpserver/internal/users"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -28,6 +28,7 @@ func ExecuteServer(port string, cert string, key string) error {
 	mux.Handle("/auth/login", middleware.Recover(http.HandlerFunc(handleLogin)))
 	mux.Handle("/dashboard", middleware.Recover(middleware.Cookies(http.HandlerFunc(serveDashboard))))
 	mux.Handle("/proxy", middleware.Recover(middleware.JWT(http.HandlerFunc(handleProxy))))
+	// mux.Handle("/settings/generate", middleware.Recover(middleware.Cookies(http.HandlerFunc())))
 	mux.Handle("/status", middleware.Recover(http.HandlerFunc(handleStatus)))
 
 	err := http.ListenAndServeTLS(port, cert, key, mux)
@@ -56,18 +57,8 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	// pull this out into auth function
 	if username == "admin" && password == "password4321" {
-		//token, err := auth.GenerateJWT(username, time.Hour)
-		//if err != nil {
-		//	log.Printf("JWT generation error: %v", err)
-		//	http.Error(w, "Could not generate token:", http.StatusInternalServerError)
-		//	return
-		//}
+		newSID := users.SessionPrefix + users.GenID(16)
 
-		//w.Header().Set("Content-Type", "application/json")
-		//fmt.Fprintf(w, `{"token": "%s"}`, token)
-
-		//return
-		newSID := users.SessionPrefix + users.GenID(16) // hash and store in sessions table
 		cookie := &http.Cookie{
 			Name:     middleware.AdmitCookies[0],
 			Value:    newSID,
@@ -78,9 +69,14 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			Expires:  time.Now().Add(time.Minute * 2),
 		}
 		http.SetCookie(w, cookie)
+
 		w.Header().Set("HX-Redirect", "/dashboard")
 		w.WriteHeader(http.StatusOK)
+		return
 	}
+
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprint(w, `Invalid username or password`)
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +87,6 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 func handleProxy(w http.ResponseWriter, r *http.Request) {
 	claims, ok := r.Context().Value("claims").(jwt.MapClaims)
 	if !ok {
-		fmt.Println("Is this failing...")
 		http.Error(w, "Failed to get JWT claims", http.StatusInternalServerError)
 		return
 	}
@@ -101,7 +96,6 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 
 	backendURL, err := getBackendURL(r)
 	if err != nil {
-		fmt.Println("Is this failing...2")
 		http.Error(w, "Backend URL not provided", http.StatusBadRequest)
 		return
 	}
