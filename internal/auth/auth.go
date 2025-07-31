@@ -45,7 +45,6 @@ func validateJWT(tokenString string, expectedAlg string) (jwt.MapClaims, error) 
 		}
 		return jwtSecret, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +65,13 @@ func validateJWT(tokenString string, expectedAlg string) (jwt.MapClaims, error) 
 func VerifyRequest(r *http.Request) (jwt.MapClaims, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return nil, fmt.Errorf("Missing Authorization header in request")
+		return nil, fmt.Errorf("missing Authorization header in request")
 	}
 
 	// expected: "Bearer <token>"
 	authSplit := strings.Split(authHeader, " ")
 	if len(authSplit) != 2 || authSplit[0] != "Bearer" {
-		return nil, fmt.Errorf("Malformed Authorization header in request")
+		return nil, fmt.Errorf("malformed Authorization header in request")
 	}
 
 	token := authSplit[1]

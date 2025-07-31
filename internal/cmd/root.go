@@ -25,11 +25,13 @@ func ExecuteServer(port string, cert string, key string) error {
 	mux := http.NewServeMux()
 
 	mux.Handle("/", middleware.Recover(http.HandlerFunc(serveLoginPage)))
+	mux.Handle("/login", middleware.Recover(http.HandlerFunc(serveLoginPage)))
 	mux.Handle("/auth/login", middleware.Recover(http.HandlerFunc(handleLogin)))
 	mux.Handle("/dashboard", middleware.Recover(middleware.Cookies(http.HandlerFunc(serveDashboard))))
-	mux.Handle("/proxy", middleware.Recover(middleware.JWT(http.HandlerFunc(handleProxy))))
 	// mux.Handle("/settings/generate", middleware.Recover(middleware.Cookies(http.HandlerFunc())))
-	mux.Handle("/status", middleware.Recover(http.HandlerFunc(handleStatus)))
+
+	mux.Handle("v1/proxy", middleware.Recover(middleware.JWT(http.HandlerFunc(handleProxy))))
+	mux.Handle("v1/status", middleware.Recover(http.HandlerFunc(handleStatus)))
 
 	err := http.ListenAndServeTLS(port, cert, key, mux)
 	return err
@@ -66,7 +68,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			HttpOnly: true,
 			Secure:   true,
 			SameSite: http.SameSiteStrictMode,
-			Expires:  time.Now().Add(time.Minute * 2),
+			Expires:  time.Now().Add(time.Minute * 5),
 		}
 		http.SetCookie(w, cookie)
 
