@@ -38,3 +38,4 @@ run:
 
 clean:
 	rm -rf $(CERT_DIR) $(BINARY)
+
