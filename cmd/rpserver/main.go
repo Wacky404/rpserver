@@ -1,29 +1,27 @@
+// TODO: Left off fixing this: 2025/08/03 15:49:13 error occured when trying to determine if migration needed: failed to check pending migrations: file does not exist
 package main
 
 import (
 	"database/sql"
+	"errors"
 	"flag"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/Wacky404/rpserver/db"
 	"github.com/Wacky404/rpserver/internal/cmd"
 	"github.com/joho/godotenv"
 
 	"github.com/golang-migrate/migrate"
-	"github.com/golang-migrate/migrate/database"
-	"github.com/golang-migrate/migrate/database/cockroachdb"
-	"github.com/golang-migrate/migrate/database/postgres"
-	"github.com/golang-migrate/migrate/database/sqlite3"
-
-	_ "github.com/golang-migrate/migrate/v4/database"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/github"
 	_ "github.com/lib/pq"
 )
 
 func main() {
 	certFile := flag.String("cert", "/rpserver/certs/localhost.pem", "TLS certificate file")
 	keyFile := flag.String("key", "/rpserver/certs/localhost-key.pem", "TLS key file")
+	forceMigrate := flag.Bool("migrate", false, "Force run migrations")
 
 	flag.Parse()
 
@@ -47,46 +45,32 @@ func main() {
 		dbProvider = string(os.Getenv("DATABASE_PROVIDER"))
 	)
 
-	db, err := sql.Open(dbProvider, dbUrl)
+	conn, err := sql.Open(dbProvider, dbUrl)
 	if err != nil {
 		log.Fatalf("Failed to open DB: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
 
-	// this ish not working for some reason; going through it
-	if err := db.Ping(); err != nil {
+	if err := conn.Ping(); err != nil {
 		log.Fatalf("Failed to establish connection with DB: %v", err)
 	}
 
-	var driver database.Driver
-
-	switch dbProvider {
-	case "postgres":
-		driver, err = postgres.WithInstance(db, &postgres.Config{})
-	case "cockroachdb":
-		driver, err = cockroachdb.WithInstance(db, &cockroachdb.Config{})
-	case "sqlite3":
-		driver, err = sqlite3.WithInstance(db, &sqlite3.Config{})
-	default:
-		log.Fatalf("Unsupported DB provided: %s", dbProvider)
-	}
-
+	// creating migrator
+	m, err := db.NewMigrator(conn, dbProvider, dbUrl)
 	if err != nil {
-		log.Fatalf("Failed to create DB driver: %v", err)
+		log.Fatalf("Failed to create new Migrator: %v", err)
 	}
+	defer m.Close()
 
-	m, err := migrate.NewWithDatabaseInstance(
-		// file:///absolute/path | file://relative/path
-		"file:///migrations",
-		dbProvider,
-		driver,
-	)
-	if err != nil {
-		log.Fatalf("Migration init failed: %v", err)
-	}
-
-	if err := m.Up(); err != nil {
-		log.Fatalf("Migrations failed: %v", err)
+	if *forceMigrate {
+		log.Println("Force running migrations...")
+		if err := m.Migrate.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			log.Fatalf("failed to migrate up: %v", err)
+		}
+	} else {
+		if err := m.MigrateIfNeeded(); err != nil {
+			log.Fatalf("error occured when trying to determine if migration needed: %v", err)
+		}
 	}
 
 	go func() {
@@ -97,7 +81,7 @@ func main() {
 		}
 	}()
 
-	log.Println("HTTP server is running on http://localhost:8080")
+	log.Println("HTTP server is running on http://localhost:8080 to redirect traffic to HTTPS")
 	err = http.ListenAndServe(":8080", http.HandlerFunc(redirectToHTTPS))
 	if err != nil {
 		log.Fatal(err)
