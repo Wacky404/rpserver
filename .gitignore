@@ -30,8 +30,5 @@ go.work.sum
 # env file
 .env
 
-# Testing
-db/
-
 # MacOS
 .DS_STORE
